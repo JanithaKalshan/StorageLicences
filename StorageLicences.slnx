@@ -1,0 +1,6 @@
+<Solution>
+  <Project Path="StorageLicences.API/StorageLicences.API.csproj" />
+  <Project Path="StorageLicences.Application/StorageLicences.Application.csproj" />
+  <Project Path="StorageLicenses.Domain/StorageLicenses.Domain.csproj" />
+  <Project Path="StorageLicenses.Infastructure/StorageLicenses.Infastructure.csproj" />
+</Solution>
