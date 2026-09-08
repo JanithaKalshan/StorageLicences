@@ -17,6 +17,7 @@ public static class InfrastructureConfigureServices
         services.AddDbContext<Repositories.ApplicationDbContext>(options =>
             options.UseSqlServer(configuration.GetConnectionString("DefaultConnection")));
 
+
         #region Register your infrastructure services here
 
 
