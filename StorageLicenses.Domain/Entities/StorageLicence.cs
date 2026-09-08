@@ -67,17 +67,19 @@ public class StorageLicence
     }
 
     /// <summary>
+    /// Determines whether the given date falls within the licence's granted term,
+    /// <c>[GrantDate, GrantDate + TermYears)</c>, ignoring any surrender.
+    /// </summary>
+    public bool IsWithinTerm(DateOnly date) => date >= GrantDate && date < CoverageEndDateExclusive;
+
+    /// <summary>
+    /// Determines whether this licence has been surrendered as of (on or before) the given date.
+    /// </summary>
+    public bool IsSurrenderedAsOf(DateOnly date) => SurrenderedDate.HasValue && date >= SurrenderedDate.Value;
+
+    /// <summary>
     /// Determines whether this licence covers the given date, i.e. the date falls within
     /// <c>[GrantDate, GrantDate + TermYears)</c> and, if surrendered, is not on/after the surrender date.
     /// </summary>
-    public bool CoversDate(DateOnly date)
-    {
-        if (date < GrantDate || date >= CoverageEndDateExclusive)
-            return false;
-
-        if (SurrenderedDate.HasValue && date >= SurrenderedDate.Value)
-            return false;
-
-        return true;
-    }
+    public bool CoversDate(DateOnly date) => IsWithinTerm(date) && !IsSurrenderedAsOf(date);
 }

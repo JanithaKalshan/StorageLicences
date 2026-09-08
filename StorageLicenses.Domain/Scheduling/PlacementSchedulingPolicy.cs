@@ -57,11 +57,11 @@ public static class PlacementSchedulingPolicy
 
         // Rule 2 — Licence covers scheduled date.
         var licence = request.CurrentLicence;
-        if (licence is null || licence.UnitId != request.Unit.Id || !licence.CoversDate(request.ScheduledDate))
+        if (licence is null || licence.UnitId != request.Unit.Id || !licence.IsWithinTerm(request.ScheduledDate))
         {
             errors.Add(SchedulingErrors.LicenceNotCoveringDate);
         }
-        else if (licence.SurrenderedDate.HasValue && request.ScheduledDate >= licence.SurrenderedDate.Value)
+        else if (licence.IsSurrenderedAsOf(request.ScheduledDate))
         {
             errors.Add(SchedulingErrors.LicenceSurrendered);
         }
