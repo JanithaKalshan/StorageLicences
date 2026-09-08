@@ -1,8 +1,9 @@
+using Microsoft.EntityFrameworkCore;
+using Microsoft.OpenApi;
 using StorageLicences.Application;
 using StorageLicenses.Infastructure;
 using StorageLicenses.Infastructure.Repositories;
 using StorageLicenses.Infastructure.Seed;
-using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -14,6 +15,17 @@ builder.Services.AddOpenApi();
 
 InfrastructureConfigureServices.AddInfrastructureServices(builder.Services, builder.Configuration);
 ApplicationConfigureServices.AddContentApplicationServices(builder.Services);
+
+builder.Services.AddSwaggerGen(options =>
+{
+    options.SwaggerDoc("v1", new OpenApiInfo
+    {
+        Title = "Storage Licence API",
+        Version = "v1",
+        Description = "Modular Monolith API for Storage Licence System"
+    });
+
+});
 
 var app = builder.Build();
 
@@ -29,7 +41,13 @@ using (var scope = app.Services.CreateScope())
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
-    app.MapOpenApi();
+    app.UseSwagger();
+    app.UseSwaggerUI(options =>
+    {
+        options.SwaggerEndpoint("/swagger/v1/swagger.json", "Storage Licence API v1");
+        options.RoutePrefix = string.Empty;
+    });
+
 }
 
 app.UseHttpsRedirection();
