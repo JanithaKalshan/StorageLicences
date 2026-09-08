@@ -3,4 +3,5 @@
   <Project Path="StorageLicences.Application/StorageLicences.Application.csproj" />
   <Project Path="StorageLicenses.Domain/StorageLicenses.Domain.csproj" />
   <Project Path="StorageLicenses.Infastructure/StorageLicenses.Infastructure.csproj" />
+  <Project Path="StorageLicences.Test/StorageLicences.Test.csproj" Id="dda4fd02-6e4c-480a-b42e-e879a4861af5" />
 </Solution>
