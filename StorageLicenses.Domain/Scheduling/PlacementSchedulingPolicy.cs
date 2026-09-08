@@ -46,6 +46,10 @@ public static class SchedulingErrors
 /// <summary>
 /// Evaluates the seven business rules governing whether an item may be scheduled for
 /// placement into a unit. All applicable rule failures are returned together.
+///
+/// Individual rule checks are exposed as public methods so callers that only have partial
+/// context (e.g. the unit availability endpoint, which has no requester/item/request-date)
+/// can evaluate a meaningful subset of rules without fabricating missing information.
 /// </summary>
 public static class PlacementSchedulingPolicy
 {
@@ -55,68 +59,98 @@ public static class PlacementSchedulingPolicy
 
         // Rule 1 (unit exists) is handled by the application layer before this policy runs.
 
-        // Rule 2 — Licence covers scheduled date.
-        var licence = request.CurrentLicence;
-        if (licence is null || licence.UnitId != request.Unit.Id || !licence.IsWithinTerm(request.ScheduledDate))
-        {
-            errors.Add(SchedulingErrors.LicenceNotCoveringDate);
-        }
-        else if (licence.IsSurrenderedAsOf(request.ScheduledDate))
-        {
-            errors.Add(SchedulingErrors.LicenceSurrendered);
-        }
-
-        // Rule 3 — Current licence holder.
-        if (licence is not null && !string.Equals(licence.HolderId, request.AssertedRequesterId, StringComparison.Ordinal))
-        {
-            errors.Add(SchedulingErrors.NotCurrentHolder);
-        }
-
-        var activePlacements = request.ExistingPlacements.Where(p => p.CountsTowardCapacity).ToList();
-
-        // Rule 4 — Capacity.
-        if (request.PlacementClass == PlacementClass.Pallet)
-        {
-            var palletCount = activePlacements.Count(p => p.PlacementClass == PlacementClass.Pallet);
-            if (palletCount >= request.Unit.PalletCapacity)
-                errors.Add(SchedulingErrors.PalletCapacityExceeded);
-        }
-        else
-        {
-            var boxCount = activePlacements.Count(p => p.PlacementClass == PlacementClass.Box);
-            if (boxCount >= request.Unit.BoxCapacity)
-                errors.Add(SchedulingErrors.BoxCapacityExceeded);
-        }
-
-        // Rule 5 — Pallet spacing (pallets only; ignores boxes and cancelled placements).
-        if (request.PlacementClass == PlacementClass.Pallet)
-        {
-            var tooClose = activePlacements
-                .Where(p => p.PlacementClass == PlacementClass.Pallet)
-                .Any(p => Math.Abs(MonthsBetween(p.ScheduledDate, request.ScheduledDate)) < 12);
-
-            if (tooClose)
-                errors.Add(SchedulingErrors.PalletGapTooSmall);
-        }
-
-        // Rule 6 — Item intake date.
-        if (request.Item.IntakeDate is null)
-        {
-            errors.Add(SchedulingErrors.ItemIntakeDateMissing);
-        }
-        else if (request.ScheduledDate < request.Item.IntakeDate.Value)
-        {
-            errors.Add(SchedulingErrors.ItemNotAvailableOnDate);
-        }
-
-        // Rule 7 — Scheduling window.
-        if (request.ScheduledDate > request.RequestDate.AddMonths(24))
-        {
-            errors.Add(SchedulingErrors.SchedulingDateTooFar);
-        }
+        errors.AddRange(CheckLicenceCoverage(request.CurrentLicence, request.Unit.Id, request.ScheduledDate));
+        errors.AddRange(CheckCurrentHolder(request.CurrentLicence, request.AssertedRequesterId));
+        errors.AddRange(CheckCapacity(request.Unit, request.ExistingPlacements, request.PlacementClass));
+        errors.AddRange(CheckPalletSpacing(request.ExistingPlacements, request.PlacementClass, request.ScheduledDate));
+        errors.AddRange(CheckItemIntake(request.Item, request.ScheduledDate));
+        errors.AddRange(CheckSchedulingWindow(request.RequestDate, request.ScheduledDate));
 
         return errors.Count == 0 ? Result.Success() : Result.Failure(errors);
     }
+
+    /// <summary>
+    /// Rule 2 — the licence must belong to the unit and cover the scheduled date, and must not
+    /// have been surrendered as of that date.
+    /// </summary>
+    public static IReadOnlyList<Error> CheckLicenceCoverage(StorageLicence? licence, int unitId, DateOnly scheduledDate)
+    {
+        if (licence is null || licence.UnitId != unitId || !licence.IsWithinTerm(scheduledDate))
+        {
+            return [SchedulingErrors.LicenceNotCoveringDate];
+        }
+
+        if (licence.IsSurrenderedAsOf(scheduledDate))
+        {
+            return [SchedulingErrors.LicenceSurrendered];
+        }
+
+        return [];
+    }
+
+    /// <summary>
+    /// Rule 3 — the asserted requester must match the current licence holder.
+    /// Requires a licence to be known; produces no error when <paramref name="licence"/> is null
+    /// since Rule 2 already reports the missing-coverage failure in that case.
+    /// </summary>
+    public static IReadOnlyList<Error> CheckCurrentHolder(StorageLicence? licence, string assertedRequesterId)
+    {
+        if (licence is not null && !string.Equals(licence.HolderId, assertedRequesterId, StringComparison.Ordinal))
+        {
+            return [SchedulingErrors.NotCurrentHolder];
+        }
+
+        return [];
+    }
+
+    /// <summary>
+    /// Rule 4 — active (scheduled/completed) placements of the requested class must not already
+    /// occupy the unit's full capacity for that class.
+    /// </summary>
+    public static IReadOnlyList<Error> CheckCapacity(Unit unit, IReadOnlyCollection<Placement> existingPlacements, PlacementClass placementClass)
+    {
+        var activeCount = existingPlacements.Count(p => p.CountsTowardCapacity && p.PlacementClass == placementClass);
+
+        if (placementClass == PlacementClass.Pallet)
+        {
+            return activeCount >= unit.PalletCapacity ? [SchedulingErrors.PalletCapacityExceeded] : [];
+        }
+
+        return activeCount >= unit.BoxCapacity ? [SchedulingErrors.BoxCapacityExceeded] : [];
+    }
+
+    /// <summary>
+    /// Rule 5 — pallet placements in the same unit must be at least 12 calendar months apart
+    /// (in either direction). Does not apply to boxes.
+    /// </summary>
+    public static IReadOnlyList<Error> CheckPalletSpacing(IReadOnlyCollection<Placement> existingPlacements, PlacementClass placementClass, DateOnly scheduledDate)
+    {
+        if (placementClass != PlacementClass.Pallet)
+            return [];
+
+        var tooClose = existingPlacements
+            .Where(p => p.CountsTowardCapacity && p.PlacementClass == PlacementClass.Pallet)
+            .Any(p => Math.Abs(MonthsBetween(p.ScheduledDate, scheduledDate)) < 12);
+
+        return tooClose ? [SchedulingErrors.PalletGapTooSmall] : [];
+    }
+
+    /// <summary>
+    /// Rule 6 — the item must have a recorded intake date that is not later than the scheduled date.
+    /// </summary>
+    public static IReadOnlyList<Error> CheckItemIntake(Item item, DateOnly scheduledDate)
+    {
+        if (item.IntakeDate is null)
+            return [SchedulingErrors.ItemIntakeDateMissing];
+
+        return scheduledDate < item.IntakeDate.Value ? [SchedulingErrors.ItemNotAvailableOnDate] : [];
+    }
+
+    /// <summary>
+    /// Rule 7 — the scheduled date must be no more than 24 calendar months after the request date.
+    /// </summary>
+    public static IReadOnlyList<Error> CheckSchedulingWindow(DateOnly requestDate, DateOnly scheduledDate) =>
+        scheduledDate > requestDate.AddMonths(24) ? [SchedulingErrors.SchedulingDateTooFar] : [];
 
     /// <summary>
     /// Whole calendar months between two dates, computed so that exactly-N-month gaps
