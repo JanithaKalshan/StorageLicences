@@ -16,6 +16,18 @@ builder.Services.AddOpenApi();
 InfrastructureConfigureServices.AddInfrastructureServices(builder.Services, builder.Configuration);
 ApplicationConfigureServices.AddContentApplicationServices(builder.Services);
 
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowFrontend", policy =>
+    {
+        var frontendUrl = builder.Configuration["AppSettings:FrontendUrl"] ?? "http://localhost:8080/";
+        policy.WithOrigins(frontendUrl)
+              .AllowAnyMethod()
+              .AllowAnyHeader()
+              .AllowCredentials();
+    });
+});
+
 builder.Services.AddSwaggerGen(options =>
 {
     options.SwaggerDoc("v1", new OpenApiInfo
@@ -26,6 +38,8 @@ builder.Services.AddSwaggerGen(options =>
     });
 
 });
+
+
 
 var app = builder.Build();
 
@@ -51,6 +65,8 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+
+app.UseCors("AllowFrontend");
 
 app.UseAuthorization();
 
