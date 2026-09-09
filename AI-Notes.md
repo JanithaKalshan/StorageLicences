@@ -27,3 +27,27 @@ Implementation details and project requirements are provided to Copilot through 
 > GET /api/units/{id}/availability
 > POST /api/placements
 > Keep controllers thin. Put orchestration in Application and EF Core/database access in Infrastructure.Use the existing DbContext and Result/Error patterns. Do not introduce a generic repository or unnecessary abstractions. Only add a focused repository/persistence abstraction if the existing structure genuinely benefits from it.For POST /api/placements, validate through the existing Domain scheduling policy and persist only after successful validation. The persistence operation must be transactional.For GET /api/units, ensure filtering, paging, and projection are executed server-side and avoid N+1 queries.Need to consider SQL performance For GET /api/units/{id}/availability, reuse the existing individual scheduling-rule methods where appropriate rather than running the complete placement validation. Only evaluate rules that can be meaningfully determined from the unit and asOf date.Follow all API contracts, business rules, error handling, performance requirements, and scope boundaries defined in the skill file.Do not duplicate business rules in the API or Infrastructure layers.After implementation, build the solution, run relevant tests, verify the endpoints, and report any remaining gaps or issues.
+
+# AI Intervention 4 — API Controllers Test
+
+**Prompt:**
+
+> Implement the API-layer tests required by the assignment and `storagelicences-implementation` skill.
+> First inspect the existing test project and API/Application implementation. Follow the existing testing conventions and reuse existing test helpers, `Result`/`Error` types, DTOs, and fixtures where possible.
+> Add high-value tests for the four required API endpoints:
+> `GET /api/units`
+> `GET /api/units/{id}`
+> `GET /api/units/{id}/availability`
+> `POST /api/placements`
+> Focus on API behavior, request/response contracts, validation/error mapping, and Application/Infrastructure interaction. Do not duplicate the Domain unit tests.
+> For `GET /api/units`, test server-side filtering, paging, response metadata, and relevant edge cases.
+> For `GET /api/units/{id}`, test successful detail retrieval and not-found behavior.
+> For `GET /api/units/{id}/availability`, test the applicable availability rules and that only meaningful rules are evaluated for the available inputs.
+> For `POST /api/placements`, test successful scheduling, validation failures, combined failures, and that a failed validation does not persist a placement.
+> Use the appropriate test type for the existing architecture (unit/integration/API tests) rather than introducing unnecessary testing infrastructure. Keep the tests deterministic and independent of the system clock.
+> After implementation:
+>
+> 1. Build the solution.
+> 2. Run all relevant tests.
+> 3. Fix genuine test or implementation issues.
+> 4. Report the tests added and any deliberate test gaps.
