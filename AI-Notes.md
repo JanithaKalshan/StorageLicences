@@ -72,3 +72,22 @@ Implementation details and project requirements are provided to Copilot through 
 > build the solution
 > run the relevant tests
 > verify the `GET /api/units/{id}` response.
+
+### AI Intervention: Transaction Scope in Placement Scheduling
+
+**What I asked AI to help with:**  
+Review the placement scheduling implementation and advise on transaction handling around persistence.
+
+**What AI suggested:**  
+AI suggested explicitly creating a database transaction around the placement creation and `SaveChangesAsync()` operation.
+
+**What I accepted:**  
+I reviewed the reasoning and retained the understanding that persistence should be atomic.
+
+**What I changed/rejected:**  
+I removed the explicit transaction scope from the implementation. The scheduling operation currently creates and persists a single `Placement` entity using one `SaveChangesAsync()` call. EF Core already provides transactional behaviour for a single `SaveChanges` operation, so an explicit transaction was unnecessary additional complexity for the current use case.
+
+I would introduce an explicit transaction if the operation later involved multiple database changes or multiple `SaveChanges` calls that needed to succeed or fail together.
+
+**Verification:**  
+I verified that the placement scheduling flow performs the required validation before persistence and that the placement is persisted through a single `SaveChangesAsync()` operation. I also verified the resulting implementation with the automated test suite.

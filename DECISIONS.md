@@ -135,6 +135,30 @@ API tests focus on endpoint behavior, request/response contracts, validation/err
 
 This separation avoids duplicating the Domain business-rule implementation in API tests while still verifying that the API correctly exposes and orchestrates the Domain behavior.
 
+### Integration testing
+
+I deliberately did not add full HTTP integration tests using `WebApplicationFactory` or an equivalent full API pipeline.
+
+The main reason is that, for this assignment, the additional setup and maintenance complexity would be relatively high compared with the value provided. Full integration tests would require coordinating the ASP.NET Core application pipeline, SQL Server test database lifecycle, migrations/seeding, HTTP requests, and test isolation.
+
+Instead, I focused the automated test coverage on the business rules and application behaviour, where failures are more directly attributable to a specific requirement.
+
+This is a deliberate trade-off rather than an assumption that integration testing is unnecessary in a production system.
+
+### What is not covered
+
+The following areas are not covered by automated integration tests:
+
+- Full HTTP request-to-database pipeline testing.
+- Controller routing and HTTP serialization/deserialization as an end-to-end flow.
+- SQL Server migration execution as part of the automated test suite.
+- End-to-end browser testing of the Vue application.
+- Concurrent placement requests/race-condition scenarios.
+
+These are recognised gaps. In a production system, I would add integration tests around the highest-risk API/database boundaries and, where appropriate, a small number of end-to-end tests covering the most important user journeys.
+
+For this take-home, I prioritised a smaller, maintainable test suite with strong coverage of the domain rules rather than adding a larger integration-test infrastructure that would significantly increase the scope of the solution.
+
 ## 10. Performance and Seed Data
 
 The database is seeded with at least 5,000 units and realistic variations so that query behavior can be evaluated against a representative dataset.
@@ -186,3 +210,15 @@ Completion time: 2026-09-10T11:04:28.1765209+05:30
 
 API-level response times were also measured after application/database warm-up and remained below the assignment's 300ms target.
 ![GET api/Units/ response time](<Screenshot 2026-09-10 100148.png>)
+
+## Known Limitations and Deliberate Gaps
+
+### Duplicate item scheduling
+
+The current model does not prevent the same item from being scheduled more than once for the same or different placement dates.
+
+I identified this as a potential domain/data-integrity concern, but the assignment requirements do not specify a rule preventing an item from having multiple placements. Therefore, I deliberately did not introduce an additional business rule, database constraint, or uniqueness requirement that is not part of the stated scope.
+
+If this were a production requirement, I would first clarify the expected item lifecycle with the business. If an item is intended to occupy only one placement at a time, I would then add an explicit domain rule and corresponding tests, rather than enforcing an assumption at the database level.
+
+This is therefore a recognised limitation of the current implementation rather than an overlooked requirement.
