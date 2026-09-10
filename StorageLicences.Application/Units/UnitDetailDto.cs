@@ -18,11 +18,16 @@ public sealed record PlacementSummaryDto(
     string Status);
 
 /// <summary>
-/// Full detail for GET /api/units/{id}: capacities, licence history and all placements.
+/// Full detail for GET /api/units/{id}: capacities, occupancy/remaining capacity, licence
+/// history and all placements.
 /// </summary>
 public sealed record UnitDetailDto(
     int Id,
     int PalletCapacity,
     int BoxCapacity,
+    int OccupiedPalletCount,
+    int OccupiedBoxCount,
+    int RemainingPalletCapacity,
+    int RemainingBoxCapacity,
     IReadOnlyList<LicenceSummaryDto> Licences,
     IReadOnlyList<PlacementSummaryDto> Placements);

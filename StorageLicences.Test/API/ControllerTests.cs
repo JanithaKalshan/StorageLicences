@@ -42,7 +42,7 @@ public sealed class UnitsControllerTests
     [Fact]
     public async Task GetUnitDetail_ReturnsOk_WhenFound()
     {
-        var detail = new UnitDetailDto(1, 1, 1, [], []);
+        var detail = new UnitDetailDto(1, 1, 1, 0, 0, 1, 1, [], []);
         var fake = new FakeUnitsQueryService { DetailResult = Result.Success(detail) };
         var controller = new UnitsController(fake);
 

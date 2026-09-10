@@ -56,13 +56,10 @@ public sealed class PlacementsService(ApplicationDbContext context) : IPlacement
         if (policyResult.IsFailure)
             return Result.Failure<PlacementDto>(policyResult.Errors);
 
-        await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
-
         var placement = new Placement(unit, item, placementClass, request.ScheduledDate);
         context.Placements.Add(placement);
 
         await context.SaveChangesAsync(cancellationToken);
-        await transaction.CommitAsync(cancellationToken);
 
         return Result.Success(new PlacementDto(
             placement.Id,

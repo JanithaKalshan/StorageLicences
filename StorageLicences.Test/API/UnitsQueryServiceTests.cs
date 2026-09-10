@@ -116,6 +116,30 @@ public sealed class UnitsQueryServiceTests : IDisposable
         Assert.Equal(unit.Id, result.Value.Id);
         Assert.Single(result.Value.Licences);
         Assert.Single(result.Value.Placements);
+        Assert.Equal(0, result.Value.OccupiedPalletCount);
+        Assert.Equal(1, result.Value.OccupiedBoxCount);
+        Assert.Equal(2, result.Value.RemainingPalletCapacity);
+        Assert.Equal(2, result.Value.RemainingBoxCapacity);
+    }
+
+    [Fact]
+    public async Task GetUnitDetailAsync_ExcludesCancelledPlacementsFromOccupancy()
+    {
+        var unit = new Unit(1, 1);
+        var item = new Item("REF-1", "desc");
+        _fixture.Context.Units.Add(unit);
+        _fixture.Context.Items.Add(item);
+        await _fixture.Context.SaveChangesAsync();
+
+        var cancelled = new Placement(unit, item, PlacementClass.Pallet, Today);
+        cancelled.Cancel();
+        _fixture.Context.Placements.Add(cancelled);
+        await _fixture.Context.SaveChangesAsync();
+
+        var result = await _sut.GetUnitDetailAsync(unit.Id, CancellationToken.None);
+
+        Assert.Equal(0, result.Value.OccupiedPalletCount);
+        Assert.Equal(1, result.Value.RemainingPalletCapacity);
     }
 
     [Fact]
