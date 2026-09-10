@@ -52,6 +52,22 @@ public sealed class UnitsQueryService(ApplicationDbContext context) : IUnitsQuer
         // 3. Get the total count for pagination based on the filtered SQL query
         var totalCount = await baseQuery.CountAsync(cancellationToken);
 
+        var sql = baseQuery
+            .OrderBy(x => x.Id)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .Select(x => new UnitListItemDto(
+                x.Id,
+                x.PalletCapacity,
+                x.BoxCapacity,
+                x.OccupiedPallets,
+                x.OccupiedBoxes,
+                x.PalletCapacity - x.OccupiedPallets, // Calculate remaining pallet capacity
+                x.BoxCapacity - x.OccupiedBoxes,      // Calculate remaining box capacity
+                x.HasActiveLicence
+            )).ToQueryString();
+        Console.WriteLine(sql);
+
         // 4. Apply pagination and finally project to your C# record/DTO using the constructor
         var items = await baseQuery
             .OrderBy(x => x.Id)
@@ -83,6 +99,14 @@ public sealed class UnitsQueryService(ApplicationDbContext context) : IUnitsQuer
                 u.Id,
                 u.PalletCapacity,
                 u.BoxCapacity,
+                u.Placements.Count(p => p.PlacementClass == PlacementClass.Pallet
+                    && (p.Status == PlacementStatus.Scheduled || p.Status == PlacementStatus.Completed)),
+                u.Placements.Count(p => p.PlacementClass == PlacementClass.Box
+                    && (p.Status == PlacementStatus.Scheduled || p.Status == PlacementStatus.Completed)),
+                u.PalletCapacity - u.Placements.Count(p => p.PlacementClass == PlacementClass.Pallet
+                    && (p.Status == PlacementStatus.Scheduled || p.Status == PlacementStatus.Completed)),
+                u.BoxCapacity - u.Placements.Count(p => p.PlacementClass == PlacementClass.Box
+                    && (p.Status == PlacementStatus.Scheduled || p.Status == PlacementStatus.Completed)),
                 u.Licences
                     .OrderByDescending(l => l.GrantDate)
                     .Select(l => new LicenceSummaryDto(
